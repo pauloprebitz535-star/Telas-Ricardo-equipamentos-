@@ -984,7 +984,7 @@
     }
     try {
       const r = await api("POST", "/auth/login", { usuario: usuario, senha: senha });
-      lembrar("token", r.token);
+      lembrar("token", r.access_token);
       lembrar("logado", "sim");
       mostrarSistema();
       await recarregarTudo();
