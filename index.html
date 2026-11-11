@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Controle de Equipamentos</title>
+  <style>
+    :root {
+      --verde: #1f7a5a;
+      --verde-esc: #14543d;
+      --verde-claro: #e6f4ee;
+      --texto: #1f2d3d;
+      --cinza: #6b7a88;
+      --borda: #d5dde3;
+      --erro: #d64545;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #f1f5f4;
+      margin: 0;
+      color: var(--texto);
+    }
+    .oculto { display: none !important; }
+    svg.ico { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+    /* ================= BARRA LATERAL ================= */
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 260px; flex-shrink: 0;
+      background: linear-gradient(180deg, var(--verde), var(--verde-esc));
+      color: #fff;
+      display: flex; flex-direction: column;
+      position: sticky; top: 0; height: 100vh;
+    }
+    .marca { display: flex; align-items: center; gap: 12px; padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,.15); }
+    .marca svg.ico { width: 30px; height: 30px; }
+    .marca h2 { margin: 0; font-size: 17px; line-height: 1.25; }
+    .menu { padding: 14px 12px; flex: 1; }
+    .menu a, .rodape a {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; margin-bottom: 4px;
+      border-radius: 8px; color: #fff; cursor: pointer; opacity: .92;
+      transition: background .15s;
+    }
+    .menu a:hover, .rodape a:hover { background: rgba(255,255,255,.14); }
+    .menu a.ativo-menu { background: #fff; color: var(--verde-esc); font-weight: 600; opacity: 1; }
+    .rodape { padding: 12px; border-top: 1px solid rgba(255,255,255,.15); }
+    .rodape .usuario { padding: 4px 14px 10px; font-size: 13px; opacity: .85; }
+
+    /* ================= CONTEÚDO ================= */
+    .conteudo { flex: 1; padding: 32px; min-width: 0; }
+    .tela { max-width: 900px; margin: 0 auto; display: none; }
+    .tela.visivel { display: block; }
+    .cabecalho h1 { margin: 0; font-size: 26px; }
+    .cabecalho p { margin: 4px 0 24px; color: var(--cinza); }
+
+    .card {
+      background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 24px;
+      border: 1px solid #e4ebe8;
+      box-shadow: 0 1px 3px rgba(16,40,30,.06), 0 6px 18px rgba(16,40,30,.05);
+    }
+    .card.editando { border-left: 5px solid #e0a526; }
+    .card h2 { margin: 0 0 18px; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
+    .contador { background: var(--verde-claro); color: var(--verde-esc); border-radius: 999px; font-size: 13px; padding: 3px 12px; font-weight: 600; }
+
+    /* ================= FORMULÁRIO ================= */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+    .campo { display: flex; flex-direction: column; }
+    .campo.cheio { grid-column: 1 / -1; }
+    label { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+    .obrig { color: var(--erro); }
+    input, select, textarea {
+      width: 100%; padding: 11px 12px; font-size: 15px; font-family: inherit; color: inherit;
+      background: #fff; border: 1.5px solid var(--borda); border-radius: 8px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    textarea { resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--verde); box-shadow: 0 0 0 3px rgba(31,122,90,.18); }
+    input.erro, select.erro, textarea.erro { border-color: var(--erro); background: #fff8f8; }
+    input.ok, select.ok, textarea.ok { border-color: #2e9e6f; }
+    /* espaço sempre reservado, assim a tela não "pula" quando o erro aparece */
+    .erro-campo { color: var(--erro); font-size: 13px; min-height: 22px; margin-top: 4px; }
+    .msg-erro { color: var(--erro); font-size: 14px; min-height: 20px; margin-bottom: 6px; font-weight: 600; }
+
+    .botoes { display: flex; gap: 10px; flex-wrap: wrap; }
+    button { font-family: inherit; font-size: 15px; font-weight: 600; border: none; border-radius: 8px; padding: 11px 22px; cursor: pointer; color: #fff; transition: filter .15s, transform .05s; }
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: translateY(1px); }
+    .btn-salvar { background: var(--verde); }
+    .btn-limpar { background: #6b7a88; }
+    .btn-editar { background: #2b6cb0; padding: 7px 14px; font-size: 13px; }
+    .btn-excluir { background: var(--erro); padding: 7px 14px; font-size: 13px; }
+
+    /* ================= TABELA ================= */
+    .tabela-rolagem { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { background: #f4f8f6; color: var(--cinza); font-weight: 600; font-size: 13px; text-align: left; padding: 12px; white-space: nowrap; }
+    td { padding: 12px; border-bottom: 1px solid #edf1ef; vertical-align: middle; }
+    tbody tr:hover { background: #fafcfb; }
+    td.acoes { white-space: nowrap; }
+    td.acoes button { margin-right: 6px; }
+    .vazio { color: var(--cinza); text-align: center; padding: 28px 12px; }
+    .badge { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+    .st-verde { background: #dff3e8; color: #17724c; }
+    .st-vermelho { background: #fbe3e3; color: #b3261e; }
+    .st-azul { background: #dfeaf8; color: #1f5fa8; }
+
+    /* ================= MODAL E AVISO ================= */
+    .modal-fundo { position: fixed; inset: 0; background: rgba(15,30,25,.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+    .modal { background: #fff; width: 100%; max-width: 410px; border-radius: 12px; padding: 26px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+    .modal h3 { margin: 0 0 10px; color: var(--verde-esc); font-size: 19px; }
+    .modal p { margin: 0 0 20px; line-height: 1.45; color: #3a4a59; }
+    .modal .botoes { justify-content: flex-end; }
+    .modal .perigo { background: var(--erro); }
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 200;
+      background: var(--verde-esc); color: #fff; padding: 13px 20px; border-radius: 10px; font-weight: 600;
+      box-shadow: 0 6px 20px rgba(0,0,0,.25);
+      opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .25s, transform .25s;
+    }
+    .toast.mostrar { opacity: 1; transform: none; }
+
+    /* ================= LOGIN ================= */
+    .login { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg, var(--verde), var(--verde-esc)); }
+    .login-card { background: #fff; width: 100%; max-width: 380px; border-radius: 14px; padding: 34px 30px; box-shadow: 0 12px 40px rgba(0,0,0,.3); }
+    .login-logo { width: 56px; height: 56px; border-radius: 50%; background: var(--verde-claro); color: var(--verde); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+    .login-logo svg.ico { width: 28px; height: 28px; }
+    .login-card h1 { font-size: 22px; margin: 0 0 4px; text-align: center; color: var(--verde-esc); }
+    .login-card p { margin: 0 0 20px; color: var(--cinza); font-size: 14px; text-align: center; }
+    .login-card .campo { margin-bottom: 14px; }
+    .login-card .btn-salvar { width: 100%; padding: 13px; }
+    .dica { margin-top: 18px; font-size: 13px; color: var(--cinza); text-align: center; background: #f4f8f6; padding: 10px; border-radius: 8px; }
+
+    @media (max-width: 800px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: static; }
+      .menu { display: flex; overflow-x: auto; flex: none; }
+      .menu a { white-space: nowrap; }
+      .conteudo { padding: 18px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===================== TELA DE LOGIN ===================== -->
+<div class="login" id="telaLogin">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+    </div>
+    <h1>Controle de Equipamentos</h1>
+    <p>Entre para acessar o sistema</p>
+    <form id="formLogin" novalidate>
+      <div class="campo">
+        <label for="loginUsuario">Usuário</label>
+        <input type="text" id="loginUsuario" maxlength="20" placeholder="Digite seu usuário" autocomplete="off">
+      </div>
+      <div class="campo">
+        <label for="loginSenha">Senha</label>
+        <input type="password" id="loginSenha" maxlength="50" placeholder="Digite sua senha" autocomplete="off">
+      </div>
+      <div class="msg-erro" id="erroLogin"></div>
+      <button type="submit" class="btn-salvar">Entrar</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== SISTEMA (aparece depois do login) ===================== -->
+<div class="layout oculto" id="app">
+
+  <aside class="sidebar">
+    <div class="marca">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+      <h2>Controle de Equipamentos</h2>
+    </div>
+    <nav class="menu">
+      <a data-tela="telaCategoria" class="ativo-menu">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+        Categorias
+      </a>
+      <a data-tela="telaEquipamento">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>
+        Equipamentos
+      </a>
+      <a data-tela="telaFornecedor">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M1 6h13v10H1zM14 10h4l3 3v3h-7"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+        Fornecedores
+      </a>
+    </nav>
+    <div class="rodape">
+      <div class="usuario">Logado como <b>admin</b></div>
+      <a id="btnSair">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Sair
+      </a>
+    </div>
+  </aside>
+
+  <main class="conteudo">
+
+    <!-- ===================== TELA: CATEGORIA ===================== -->
+    <section class="tela visivel" id="telaCategoria">
+      <div class="cabecalho">
+        <h1>Categorias</h1>
+        <p>Cadastre os tipos de equipamento da empresa.</p>
+      </div>
+      <div class="card">
+        <h2 class="titulo-form">Novo cadastro</h2>
+        <form id="formCategoria" novalidate autocomplete="off">
+          <div class="grid">
+            <div class="campo">
+              <label for="catNome">Nome <span class="obrig">*</span></label>
+              <input type="text" id="catNome" name="nome" maxlength="40" data-rotulo="Nome" data-obrigatorio data-min="3" data-filtro="nome" placeholder="Ex: Notebooks">
+            </div>
+            <div class="campo">
+              <label for="catStatus">Status</label>
+              <select id="catStatus" name="status" data-rotulo="Status">
+                <option>Ativo</option>
+                <option>Inativo</option>
+              </select>
+            </div>
+            <div class="campo cheio">
+              <label for="catDescricao">Descrição</label>
+              <textarea id="catDescricao" name="descricao" rows="3" maxlength="120" data-rotulo="Descrição" placeholder="Descreva a categoria (máx. 120 caracteres)"></textarea>
+            </div>
+          </div>
+          <div class="msg-erro"></div>
+          <div class="botoes">
+            <button type="submit" class="btn-salvar">Salvar</button>
+            <button type="button" class="btn-limpar">Limpar</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Categorias cadastradas <span class="contador" id="contCategoria">0</span></h2>
+        <div class="tabela-rolagem">
+          <table>
+            <thead><tr><th>Nome</th><th>Descrição</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody id="listaCategoria"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TELA: EQUIPAMENTO ===================== -->
+    <section class="tela" id="telaEquipamento">
+      <div class="cabecalho">
+        <h1>Equipamentos</h1>
+        <p>Cadastre os equipamentos usando as categorias e fornecedores já cadastrados.</p>
+      </div>
+      <div class="card">
+        <h2 class="titulo-form">Novo cadastro</h2>
+        <form id="formEquipamento" novalidate autocomplete="off">
+          <div class="grid">
+            <div class="campo">
+              <label for="eqNome">Nome <span class="obrig">*</span></label>
+              <input type="text" id="eqNome" name="nome" maxlength="50" data-rotulo="Nome" data-obrigatorio data-min="3" data-filtro="nome" placeholder="Ex: Notebook Dell Inspiron">
+            </div>
+            <div class="campo">
+              <label for="eqCodigo">Código / Patrimônio (só números) <span class="obrig">*</span></label>
+              <input type="text" id="eqCodigo" name="codigo" inputmode="numeric" maxlength="8" data-rotulo="Código" data-obrigatorio data-min="3" data-filtro="numeros" placeholder="Ex: 100245">
+            </div>
+            <div class="campo">
+              <label for="eqCategoria">Categoria <span class="obrig">*</span></label>
+              <select id="eqCategoria" name="categoria" data-rotulo="Categoria" data-obrigatorio></select>
+            </div>
+            <div class="campo">
+              <label for="eqFornecedor">Fornecedor <span class="obrig">*</span></label>
+              <select id="eqFornecedor" name="fornecedor" data-rotulo="Fornecedor" data-obrigatorio></select>
+            </div>
+            <div class="campo">
+              <label for="eqStatus">Status</label>
+              <select id="eqStatus" name="status" data-rotulo="Status">
+                <option>Disponível</option>
+                <option>Em uso</option>
+                <option>Em manutenção</option>
+              </select>
+            </div>
+          </div>
+          <div class="msg-erro"></div>
+          <div class="botoes">
+            <button type="submit" class="btn-salvar">Salvar</button>
+            <button type="button" class="btn-limpar">Limpar</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Equipamentos cadastrados <span class="contador" id="contEquipamento">0</span></h2>
+        <div class="tabela-rolagem">
+          <table>
+            <thead><tr><th>Nome</th><th>Código</th><th>Categoria</th><th>Fornecedor</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody id="listaEquipamento"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TELA: FORNECEDOR ===================== -->
+    <section class="tela" id="telaFornecedor">
+      <div class="cabecalho">
+        <h1>Fornecedores</h1>
+        <p>Cadastre pessoas físicas (CPF) ou empresas (CNPJ).</p>
+      </div>
+      <div class="card">
+        <h2 class="titulo-form">Novo cadastro</h2>
+        <form id="formFornecedor" novalidate autocomplete="off">
+          <div class="grid">
+            <div class="campo">
+              <label for="fornTipo">Tipo de pessoa</label>
+              <select id="fornTipo" name="tipo" data-rotulo="Tipo de pessoa">
+                <option>Pessoa Física</option>
+                <option>Pessoa Jurídica</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label for="fornDoc"><span id="txtDoc">CPF</span> <span class="obrig">*</span></label>
+              <input type="text" id="fornDoc" name="documento" inputmode="numeric" maxlength="14" data-rotulo="CPF" data-obrigatorio data-tipo="documento" placeholder="000.000.000-00">
+            </div>
+            <div class="campo cheio">
+              <label for="fornNome"><span id="txtNome">Nome completo</span> <span class="obrig">*</span></label>
+              <input type="text" id="fornNome" name="nome" maxlength="60" data-rotulo="Nome" data-obrigatorio data-min="3" data-filtro="letras" placeholder="Ex: Maria da Silva">
+            </div>
+            <div class="campo">
+              <label for="fornTel">Telefone <span class="obrig">*</span></label>
+              <input type="text" id="fornTel" name="telefone" inputmode="numeric" maxlength="15" data-rotulo="Telefone" data-obrigatorio data-tipo="telefone" placeholder="(49) 99999-9999">
+            </div>
+            <div class="campo">
+              <label for="fornEmail">E-mail</label>
+              <input type="text" id="fornEmail" name="email" maxlength="60" autocapitalize="off" data-rotulo="E-mail" data-tipo="email" placeholder="nome@gmail.com">
+            </div>
+          </div>
+          <div class="msg-erro"></div>
+          <div class="botoes">
+            <button type="submit" class="btn-salvar">Salvar</button>
+            <button type="button" class="btn-limpar">Limpar</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Fornecedores cadastrados <span class="contador" id="contFornecedor">0</span></h2>
+        <div class="tabela-rolagem">
+          <table>
+            <thead><tr><th>Nome</th><th>Tipo</th><th>Documento</th><th>Telefone</th><th>E-mail</th><th>Ações</th></tr></thead>
+            <tbody id="listaFornecedor"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== MODAL E AVISO RÁPIDO ===================== -->
+<div class="modal-fundo oculto" id="modalFundo">
+  <div class="modal">
+    <h3 id="modalTitulo"></h3>
+    <p id="modalTexto"></p>
+    <div class="botoes">
+      <button type="button" class="btn-limpar" id="modalCancelar">Cancelar</button>
+      <button type="button" class="btn-salvar" id="modalOk">OK</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  // ==================================================================
+  // 1) COMUNICAÇÃO COM A API (os dados ficam no MySQL)
+  // O navegador só guarda o token do login na sessão.
+  // ==================================================================
+  // Os dados agora ficam no MySQL. O navegador só guarda uma cópia para desenhar as telas.
+  const API_URL = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+  let banco = { categorias: [], equipamentos: [], fornecedores: [] };
+
+  // Faz a chamada à API (já envia o token do login). Lança Error com a mensagem do servidor.
+  async function api(metodo, caminho, corpo) {
+    const token = lerLembrado("token");
+    let resp;
+    try {
+      resp = await fetch(API_URL + caminho, {
+        method: metodo,
+        headers: Object.assign({ "Content-Type": "application/json" }, token ? { Authorization: "Bearer " + token } : {}),
+        body: corpo ? JSON.stringify(corpo) : undefined
+      });
+    } catch (e) {
+      throw new Error("Não foi possível falar com o servidor. Ele está ligado?");
+    }
+    if (resp.status === 204) return null;
+    let dados = null;
+    try { dados = await resp.json(); } catch (e) {}
+    if (!resp.ok) {
+      if (resp.status === 401 && token) sair();   // sessão expirou
+      let msg = "Erro " + resp.status;
+      if (dados && typeof dados.detail === "string") msg = dados.detail;
+      else if (dados && Array.isArray(dados.detail)) {
+        msg = dados.detail.map(function (d) { return String(d.msg).replace(/^Value error, /, ""); }).join(" ");
+      }
+      throw new Error(msg);
+    }
+    return dados;
+  }
+
+  // Busca tudo no servidor e redesenha as 3 telas
+  async function recarregarTudo() {
+    const r = await Promise.all([api("GET", "/categorias"), api("GET", "/fornecedores"), api("GET", "/equipamentos")]);
+    banco.categorias = r[0];
+    banco.fornecedores = r[1].map(function (f) {
+      return Object.assign({}, f, { documento: mascaraDocumento(f.documento, f.tipo === "Pessoa Física"), telefone: mascaraTelefone(f.telefone) });
+    });
+    banco.equipamentos = r[2].map(function (e) {
+      return { id: e.id, nome: e.nome, codigo: e.codigo, categoria: e.categoria_nome, fornecedor: e.fornecedor_nome, status: e.status };
+    });
+    cadCategoria.mostrarLista();
+    cadEquipamento.mostrarLista();
+    cadFornecedor.mostrarLista();
+    atualizarSelects();
+  }
+
+  // Guarda coisas simples da sessão (tela atual e login) para o F5 não perder
+  function lembrar(chave, valor) { try { sessionStorage.setItem(chave, valor); } catch (e) {} }
+  function lerLembrado(chave) { try { return sessionStorage.getItem(chave); } catch (e) { return null; } }
+  function esquecer(chave) { try { sessionStorage.removeItem(chave); } catch (e) {} }
+
+  // Evita que um texto com < > quebre a página
+  function escapar(texto) {
+    const div = document.createElement("div");
+    div.textContent = texto;
+    return div.innerHTML;
+  }
+
+  // ==================================================================
+  // 2) MODAL (no lugar de alert/confirm) E AVISO RÁPIDO (toast)
+  // ==================================================================
+  const modalFundo = document.getElementById("modalFundo");
+  const modalTitulo = document.getElementById("modalTitulo");
+  const modalTexto = document.getElementById("modalTexto");
+  const modalOk = document.getElementById("modalOk");
+  const modalCancelar = document.getElementById("modalCancelar");
+  let acaoDoModal = null;
+
+  function abrirModal(titulo, texto, textoBotao, ehPerigo, aoConfirmar) {
+    modalTitulo.textContent = titulo;
+    modalTexto.textContent = texto;
+    modalOk.textContent = textoBotao;
+    modalOk.classList.toggle("perigo", ehPerigo);
+    modalCancelar.classList.toggle("oculto", !aoConfirmar);
+    acaoDoModal = aoConfirmar;
+    modalFundo.classList.remove("oculto");
+    modalOk.focus();
+  }
+  function fecharModal() { modalFundo.classList.add("oculto"); acaoDoModal = null; }
+  function mostrarAviso(titulo, texto) { abrirModal(titulo, texto, "OK", false, null); }
+  function mostrarConfirmacao(titulo, texto, aoConfirmar) { abrirModal(titulo, texto, "Excluir", true, aoConfirmar); }
+
+  modalOk.addEventListener("click", function () {
+    const acao = acaoDoModal;
+    fecharModal();
+    if (acao) acao();
+  });
+  modalCancelar.addEventListener("click", fecharModal);
+  modalFundo.addEventListener("click", function (e) { if (e.target === modalFundo) fecharModal(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") fecharModal(); });
+
+  const toastEl = document.getElementById("toast");
+  let tempoToast = null;
+  function toast(mensagem) {
+    toastEl.textContent = mensagem;
+    toastEl.classList.add("mostrar");
+    clearTimeout(tempoToast);
+    tempoToast = setTimeout(function () { toastEl.classList.remove("mostrar"); }, 2500);
+  }
+
+  // ==================================================================
+  // 3) FILTROS, MÁSCARAS E VALIDADORES
+  // ==================================================================
+
+  // Filtros: removem o que não pode ser digitado em cada tipo de campo.
+  // O "@" é bloqueado em TODOS os campos, menos no de e-mail.
+  const FILTROS = {
+    numeros: /\D/g,                          // só números
+    letras:  /[^\p{L} '.-]/gu,               // só letras (e espaço . ' -)
+    nome:    /[^\p{L}\p{N} .,'&\/()-]/gu,    // letras, números e alguns símbolos
+    texto:   /@/g                            // livre, menos @
+  };
+  const MENSAGEM_FILTRO = {
+    numeros: "Use apenas números.",
+    letras:  "Use apenas letras.",
+    nome:    "Use apenas letras, números e os símbolos . , - & ( )",
+    texto:   "O @ só é permitido no campo de e-mail."
+  };
+
+  function filtrar(valor, filtro) {
+    return valor.replace(FILTROS[filtro || "texto"], "");
+  }
+
+  // E-mail: só caracteres válidos e no máximo UM @
+  function filtrarEmail(valor) {
+    valor = valor.replace(/[^a-zA-Z0-9@._+-]/g, "");
+    const pos = valor.indexOf("@");
+    if (pos < 0) return valor;
+    return valor.slice(0, pos + 1) + valor.slice(pos + 1).replace(/@/g, "");
+  }
+
+  function mascaraTelefone(valor) {
+    const d = valor.replace(/\D/g, "").slice(0, 11);
+    if (d.length > 10) return "(" + d.slice(0, 2) + ") " + d.slice(2, 7) + "-" + d.slice(7);
+    if (d.length > 6)  return "(" + d.slice(0, 2) + ") " + d.slice(2, 6) + "-" + d.slice(6);
+    if (d.length > 2)  return "(" + d.slice(0, 2) + ") " + d.slice(2);
+    if (d.length > 0)  return "(" + d;
+    return "";
+  }
+
+  function mascaraDocumento(valor, ehCpf) {
+    const d = valor.replace(/\D/g, "").slice(0, ehCpf ? 11 : 14);
+    let r = d;
+    if (ehCpf) {                                   // 000.000.000-00
+      if (d.length > 3) r = d.slice(0, 3) + "." + d.slice(3);
+      if (d.length > 6) r = d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6);
+      if (d.length > 9) r = d.slice(0, 3) + "." + d.slice(3, 6) + "." + d.slice(6, 9) + "-" + d.slice(9);
+    } else {                                       // 00.000.000/0000-00
+      if (d.length > 2)  r = d.slice(0, 2) + "." + d.slice(2);
+      if (d.length > 5)  r = d.slice(0, 2) + "." + d.slice(2, 5) + "." + d.slice(5);
+      if (d.length > 8)  r = d.slice(0, 2) + "." + d.slice(2, 5) + "." + d.slice(5, 8) + "/" + d.slice(8);
+      if (d.length > 12) r = d.slice(0, 2) + "." + d.slice(2, 5) + "." + d.slice(5, 8) + "/" + d.slice(8, 12) + "-" + d.slice(12);
+    }
+    return r;
+  }
+
+  // Verifica os dois dígitos verificadores do CPF
+  function cpfValido(cpf) {
+    if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false; // rejeita 111.111.111-11 etc.
+    for (let t = 9; t < 11; t++) {
+      let soma = 0;
+      for (let i = 0; i < t; i++) soma += Number(cpf[i]) * (t + 1 - i);
+      let dv = (soma * 10) % 11;
+      if (dv === 10) dv = 0;
+      if (dv !== Number(cpf[t])) return false;
+    }
+    return true;
+  }
+
+  // Verifica os dois dígitos verificadores do CNPJ
+  function cnpjValido(cnpj) {
+    if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+    for (let t = 12; t < 14; t++) {
+      const pesos = t === 12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2];
+      let soma = 0;
+      for (let i = 0; i < t; i++) soma += Number(cnpj[i]) * pesos[i];
+      const resto = soma % 11;
+      const dv = resto < 2 ? 0 : 11 - resto;
+      if (dv !== Number(cnpj[t])) return false;
+    }
+    return true;
+  }
+
+  // Aplica filtro/máscara no que a pessoa está digitando
+  function formatar(campo) {
+    let v = campo.value;
+    const tipo = campo.dataset.tipo;
+    if (tipo === "email") v = filtrarEmail(v);
+    else if (tipo === "telefone") v = mascaraTelefone(v);
+    else if (tipo === "documento") v = mascaraDocumento(v, campo.form.elements.tipo.value === "Pessoa Física");
+    else v = filtrar(v, campo.dataset.filtro);
+    if (v !== campo.value) campo.value = v;
+  }
+
+  // Retorna o texto do erro do campo (ou "" se estiver tudo certo)
+  function mensagemDeErro(campo) {
+    const valor = campo.value.trim();
+    const rotulo = campo.dataset.rotulo || "Campo";
+    const tipo = campo.dataset.tipo;
+
+    if (valor === "") {
+      if (!campo.hasAttribute("data-obrigatorio")) return "";
+      if (campo.tagName === "SELECT") return campo.dataset.semOpcoes || "Selecione uma opção.";
+      return rotulo + " é obrigatório.";
+    }
+
+    if (tipo === "email") {
+      if ((valor.match(/@/g) || []).length !== 1) return "O e-mail precisa ter exatamente um @.";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor)) return "Digite um e-mail válido. Ex: nome@gmail.com";
+      return "";
+    }
+    if (tipo === "telefone") {
+      const d = valor.replace(/\D/g, "");
+      if (d.length < 10 || d.length > 11 || d[0] === "0" || (d.length === 11 && d[2] !== "9")) {
+        return "Telefone inválido. Digite o DDD + número.";
+      }
+      return "";
+    }
+    if (tipo === "documento") {
+      const d = valor.replace(/\D/g, "");
+      const ehCpf = campo.form.elements.tipo.value === "Pessoa Física";
+      const tamanho = ehCpf ? 11 : 14;
+      if (d.length !== tamanho) return rotulo + " deve ter " + tamanho + " números.";
+      if (ehCpf ? !cpfValido(d) : !cnpjValido(d)) return rotulo + " inválido.";
+      return "";
+    }
+
+    const filtro = campo.dataset.filtro || "texto";
+    if (filtrar(valor, filtro) !== valor) return MENSAGEM_FILTRO[filtro];
+
+    if (campo.dataset.min && valor.length < Number(campo.dataset.min)) {
+      const unidade = filtro === "numeros" ? "dígitos" : "caracteres";
+      return rotulo + " deve ter pelo menos " + campo.dataset.min + " " + unidade + ".";
+    }
+    return "";
+  }
+
+  // Mostra (ou limpa) o erro logo abaixo do campo
+  function mostrarErro(campo, mensagem) {
+    const div = campo.parentElement.querySelector(".erro-campo");
+    if (div) div.textContent = mensagem;
+    campo.classList.toggle("erro", mensagem !== "");
+    campo.classList.toggle("ok", mensagem === "" && campo.value.trim() !== "");
+    return mensagem === "";
+  }
+
+  function limparErroCampo(campo) {
+    const div = campo.parentElement.querySelector(".erro-campo");
+    if (div) div.textContent = "";
+    campo.classList.remove("erro", "ok");
+  }
+
+  // ==================================================================
+  // 4) FUNÇÃO "RECEITA" DE CADASTRO
+  // Serve para qualquer tela: valida, salva, lista, edita e exclui.
+  // ==================================================================
+  function criarCadastro(cfg) {
+    const form = document.getElementById(cfg.form);
+    const tbody = document.getElementById(cfg.tbody);
+    const contador = document.getElementById(cfg.contador);
+    const msgErro = form.querySelector(".msg-erro");
+    const btnSalvar = form.querySelector(".btn-salvar");
+    const btnLimpar = form.querySelector(".btn-limpar");
+    const card = form.parentElement;
+    const tituloForm = card.querySelector(".titulo-form");
+    const campos = form.querySelectorAll("[name]");
+    let idEditando = null; // null = cadastrando | número = editando
+
+    // Cria o espaço do erro embaixo de cada campo e liga os eventos
+    campos.forEach(function (campo) {
+      const divErro = document.createElement("div");
+      divErro.className = "erro-campo";
+      campo.insertAdjacentElement("afterend", divErro);
+
+      // Enquanto digita: filtra/aplica máscara (campo "trava" nos caracteres permitidos)
+      campo.addEventListener("input", function () {
+        formatar(campo);
+        if (campo.classList.contains("erro")) mostrarErro(campo, validarCampo(campo)); // corrige ao vivo
+      });
+
+      // Ao sair do campo: valida e mostra o erro abaixo
+      campo.addEventListener("blur", function () {
+        if (campo.tagName !== "SELECT") {
+          campo.value = campo.value.trim();
+          if (campo.dataset.tipo === "email") campo.value = campo.value.toLowerCase();
+        }
+        mostrarErro(campo, validarCampo(campo));
+      });
+      campo.addEventListener("change", function () {
+        if (campo.tagName === "SELECT") mostrarErro(campo, validarCampo(campo));
+      });
+    });
+
+    // Quando algum campo muda, a tela pode precisar se ajustar (ex: CPF/CNPJ)
+    form.addEventListener("change", function (evento) {
+      if (cfg.aoAtualizarForm) cfg.aoAtualizarForm(form, evento);
+    });
+
+    // Validação de um campo (regras gerais + não repetir)
+    function validarCampo(campo) {
+      const msg = mensagemDeErro(campo);
+      if (msg !== "") return msg;
+      if (campo.value.trim() === "") return "";
+
+      if (cfg.unicos.indexOf(campo.name) >= 0) {
+        const normalizar = function (v) {
+          return campo.dataset.tipo === "documento" ? v.replace(/\D/g, "") : v.trim().toLowerCase();
+        };
+        const repetido = banco[cfg.lista].some(function (item) {
+          return item.id !== idEditando && normalizar(item[campo.name] || "") === normalizar(campo.value);
+        });
+        if (repetido) return campo.dataset.rotulo + " já cadastrado.";
+      }
+      return "";
+    }
+
+    // ---------- LISTAR ----------
+    function corDoStatus(status) {
+      if (status === "Ativo" || status === "Disponível") return "st-verde";
+      if (status === "Inativo" || status === "Em manutenção") return "st-vermelho";
+      return "st-azul";
+    }
+
+    function mostrarLista() {
+      tbody.innerHTML = "";
+      const itens = banco[cfg.lista];
+      contador.textContent = itens.length;
+
+      if (itens.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="' + (cfg.colunas.length + 1) + '" class="vazio">Nenhum registro cadastrado ainda.</td></tr>';
+        return;
+      }
+
+      itens.forEach(function (item) {
+        let html = "";
+        cfg.colunas.forEach(function (coluna) {
+          const valor = escapar(item[coluna] || "-");
+          html += coluna === "status"
+            ? '<td><span class="badge ' + corDoStatus(item[coluna]) + '">' + valor + "</span></td>"
+            : "<td>" + valor + "</td>";
+        });
+        html += '<td class="acoes">' +
+                  '<button class="btn-editar" data-acao="editar" data-id="' + item.id + '">Editar</button>' +
+                  '<button class="btn-excluir" data-acao="excluir" data-id="' + item.id + '">Excluir</button>' +
+                '</td>';
+        const linha = document.createElement("tr");
+        linha.innerHTML = html;
+        tbody.appendChild(linha);
+      });
+    }
+
+    // ---------- LIMPAR ----------
+    function limpar() {
+      form.reset();
+      idEditando = null;
+      btnSalvar.textContent = "Salvar";
+      btnLimpar.textContent = "Limpar";
+      tituloForm.textContent = "Novo cadastro";
+      card.classList.remove("editando");
+      msgErro.textContent = "";
+      campos.forEach(limparErroCampo);
+      if (cfg.aoAtualizarForm) cfg.aoAtualizarForm(form, null);
+    }
+
+    // ---------- SALVAR (novo ou edição) ----------
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      // Valida todos os campos e mostra o erro de cada um
+      let primeiroComErro = null;
+      campos.forEach(function (campo) {
+        const ok = mostrarErro(campo, validarCampo(campo));
+        if (!ok && !primeiroComErro) primeiroComErro = campo;
+      });
+      if (primeiroComErro) {
+        msgErro.textContent = "Corrija os campos destacados em vermelho.";
+        primeiroComErro.focus();
+        return;
+      }
+      msgErro.textContent = "";
+
+      const valores = {};
+      campos.forEach(function (c) { valores[c.name] = c.value.trim(); });
+
+      const corpo = cfg.paraApi ? cfg.paraApi(valores) : valores;
+      const novo = idEditando === null;
+      btnSalvar.disabled = true;
+      try {
+        await api(novo ? "POST" : "PUT", "/" + cfg.rota + (novo ? "" : "/" + idEditando), corpo);
+        await recarregarTudo();
+      } catch (erro) {
+        msgErro.textContent = erro.message;
+        return;
+      } finally {
+        btnSalvar.disabled = false;
+      }
+      toast(novo ? "Registro salvo com sucesso!" : "Registro atualizado com sucesso!");
+      limpar();
+    });
+
+    btnLimpar.addEventListener("click", limpar);
+
+    // ---------- EDITAR / EXCLUIR (cliques na tabela) ----------
+    tbody.addEventListener("click", function (event) {
+      const botao = event.target.closest("button");
+      if (!botao) return;
+
+      const id = Number(botao.dataset.id);
+      const item = banco[cfg.lista].find(function (i) { return i.id === id; });
+
+      if (botao.dataset.acao === "editar") {
+        atualizarSelects();
+        campos.forEach(function (c) {
+          const valor = item[c.name] || "";
+          // Se a opção não existe mais na lista (ex: categoria inativa), adiciona
+          if (c.tagName === "SELECT" && valor !== "" &&
+              !Array.prototype.some.call(c.options, function (o) { return o.value === valor; })) {
+            const opcao = document.createElement("option");
+            opcao.value = valor;
+            opcao.textContent = valor;
+            c.appendChild(opcao);
+          }
+          c.value = valor;
+          limparErroCampo(c);
+        });
+        if (cfg.aoAtualizarForm) cfg.aoAtualizarForm(form, null);
+        idEditando = id;
+        btnSalvar.textContent = "Atualizar";
+        btnLimpar.textContent = "Cancelar edição";
+        tituloForm.textContent = "Editando registro";
+        card.classList.add("editando");
+        msgErro.textContent = "";
+        form.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      if (botao.dataset.acao === "excluir") {
+        const aviso = cfg.emUso ? cfg.emUso(item) : null;
+        if (aviso) { mostrarAviso("Não é possível excluir", aviso); return; }
+
+        mostrarConfirmacao("Excluir registro", "Deseja realmente excluir este registro?", async function () {
+          try {
+            await api("DELETE", "/" + cfg.rota + "/" + id);
+            await recarregarTudo();
+            limpar();
+            toast("Registro excluído.");
+          } catch (erro) {
+            mostrarAviso("Não foi possível excluir", erro.message);
+          }
+        });
+      }
+    });
+
+    if (cfg.aoAtualizarForm) cfg.aoAtualizarForm(form, null);
+    return { mostrarLista: mostrarLista };
+  }
+
+  // ==================================================================
+  // 5) AJUSTE DO FORMULÁRIO DE FORNECEDOR (CPF x CNPJ)
+  // Pessoa Física  -> CPF (11 números) e "Nome completo" (só letras)
+  // Pessoa Jurídica -> CNPJ (14 números) e "Razão social"
+  // ==================================================================
+  function ajustarFormFornecedor(form, evento) {
+    const fisica = form.elements.tipo.value === "Pessoa Física";
+    const doc = form.elements.documento;
+    const nome = form.elements.nome;
+
+    doc.maxLength = fisica ? 14 : 18;   // tamanho com pontos e traço
+    doc.placeholder = fisica ? "000.000.000-00" : "00.000.000/0000-00";
+    doc.dataset.rotulo = fisica ? "CPF" : "CNPJ";
+    document.getElementById("txtDoc").textContent = fisica ? "CPF" : "CNPJ";
+
+    nome.dataset.filtro = fisica ? "letras" : "nome";
+    nome.dataset.rotulo = fisica ? "Nome" : "Razão social";
+    nome.placeholder = fisica ? "Ex: Maria da Silva" : "Ex: Tech Distribuidora Ltda";
+    document.getElementById("txtNome").textContent = fisica ? "Nome completo" : "Razão social";
+
+    // Se a pessoa trocou o tipo agora: limpa o documento e revalida o nome
+    if (evento && evento.target.name === "tipo") {
+      doc.value = "";
+      limparErroCampo(doc);
+      if (nome.value.trim() !== "") mostrarErro(nome, mensagemDeErro(nome));
+    }
+  }
+
+  // ==================================================================
+  // 6) CONFIGURAR AS 3 TELAS
+  // unicos = campos que não podem repetir
+  // ==================================================================
+  const cadCategoria = criarCadastro({
+    form: "formCategoria", tbody: "listaCategoria", contador: "contCategoria",
+    rota: "categorias", lista: "categorias", colunas: ["nome", "descricao", "status"], unicos: ["nome"],
+    emUso: function (cat) {
+      const usada = banco.equipamentos.some(function (e) { return e.categoria === cat.nome; });
+      return usada ? "Há equipamentos cadastrados nesta categoria." : null;
+    },
+    aoRenomear: function (antigo, novo) {
+      banco.equipamentos.forEach(function (e) { if (e.categoria === antigo) e.categoria = novo; });
+    }
+  });
+
+  const cadEquipamento = criarCadastro({
+    form: "formEquipamento", tbody: "listaEquipamento", contador: "contEquipamento",
+    rota: "equipamentos", lista: "equipamentos", colunas: ["nome", "codigo", "categoria", "fornecedor", "status"], unicos: ["codigo"],
+    // o formulário trabalha com nomes; a API quer os ids
+    paraApi: function (v) {
+      const c = banco.categorias.find(function (x) { return x.nome === v.categoria; });
+      const f = banco.fornecedores.find(function (x) { return x.nome === v.fornecedor; });
+      return { nome: v.nome, codigo: v.codigo, categoria_id: c ? c.id : 0, fornecedor_id: f ? f.id : 0, status: v.status };
+    }
+  });
+
+  const cadFornecedor = criarCadastro({
+    form: "formFornecedor", tbody: "listaFornecedor", contador: "contFornecedor",
+    rota: "fornecedores", lista: "fornecedores", colunas: ["nome", "tipo", "documento", "telefone", "email"], unicos: ["documento", "nome"],
+    aoAtualizarForm: ajustarFormFornecedor,
+    emUso: function (forn) {
+      const usado = banco.equipamentos.some(function (e) { return e.fornecedor === forn.nome; });
+      return usado ? "Há equipamentos cadastrados com este fornecedor." : null;
+    },
+    aoRenomear: function (antigo, novo) {
+      banco.equipamentos.forEach(function (e) { if (e.fornecedor === antigo) e.fornecedor = novo; });
+    }
+  });
+
+  // ==================================================================
+  // 7) SELECTS DO EQUIPAMENTO (categorias ativas e fornecedores)
+  // ==================================================================
+  function preencherSelect(select, nomes, textoVazio) {
+    const valorAtual = select.value;
+    select.innerHTML = "";
+    select.dataset.semOpcoes = nomes.length === 0 ? textoVazio : "";
+
+    if (nomes.length === 0) {
+      select.innerHTML = '<option value="">' + textoVazio + "</option>";
+      return;
+    }
+    select.innerHTML = '<option value="">Selecione...</option>';
+    nomes.forEach(function (nome) {
+      const opcao = document.createElement("option");
+      opcao.value = nome;
+      opcao.textContent = nome;
+      select.appendChild(opcao);
+    });
+    select.value = valorAtual;
+  }
+
+  function atualizarSelects() {
+    const formEquip = document.getElementById("formEquipamento");
+    const categoriasAtivas = banco.categorias
+      .filter(function (c) { return c.status === "Ativo"; })
+      .map(function (c) { return c.nome; });
+    const fornecedores = banco.fornecedores.map(function (f) { return f.nome; });
+
+    preencherSelect(formEquip.elements.categoria, categoriasAtivas, "Cadastre uma categoria primeiro.");
+    preencherSelect(formEquip.elements.fornecedor, fornecedores, "Cadastre um fornecedor primeiro.");
+  }
+
+  // ==================================================================
+  // 8) MENU LATERAL (lembra a tela atual quando aperta F5)
+  // ==================================================================
+  const linksMenu = document.querySelectorAll(".menu a");
+  const telas = document.querySelectorAll(".tela");
+
+  function abrirTela(id) {
+    linksMenu.forEach(function (l) { l.classList.toggle("ativo-menu", l.dataset.tela === id); });
+    telas.forEach(function (t) { t.classList.toggle("visivel", t.id === id); });
+    atualizarSelects();
+    lembrar("telaAtual", id);
+  }
+
+  linksMenu.forEach(function (link) {
+    link.addEventListener("click", function () { abrirTela(link.dataset.tela); });
+  });
+
+  // ==================================================================
+  // 9) LOGIN
+  // ==================================================================
+  const telaLogin = document.getElementById("telaLogin");
+  const app = document.getElementById("app");
+  const formLogin = document.getElementById("formLogin");
+  const loginUsuario = document.getElementById("loginUsuario");
+  const loginSenha = document.getElementById("loginSenha");
+  const erroLogin = document.getElementById("erroLogin");
+
+  // No usuário não pode ter @ nem espaço
+  loginUsuario.addEventListener("input", function () {
+    loginUsuario.value = loginUsuario.value.replace(/[@\s]/g, "");
+  });
+
+  function mostrarSistema() {
+    telaLogin.classList.add("oculto");
+    app.classList.remove("oculto");
+  }
+
+  function mostrarLogin() {
+    app.classList.add("oculto");
+    telaLogin.classList.remove("oculto");
+    formLogin.reset();
+    erroLogin.textContent = "";
+  }
+
+  formLogin.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    const usuario = loginUsuario.value.trim();
+    const senha = loginSenha.value;
+
+    if (usuario === "" || senha === "") {
+      erroLogin.textContent = "Preencha o usuário e a senha.";
+      return;
+    }
+    try {
+      const r = await api("POST", "/auth/login", { usuario: usuario, senha: senha });
+      lembrar("token", r.token);
+      lembrar("logado", "sim");
+      mostrarSistema();
+      await recarregarTudo();
+    } catch (erro) {
+      erroLogin.textContent = erro.message;
+      loginSenha.value = "";
+    }
+  });
+
+  function sair() {
+    esquecer("token");
+    esquecer("logado");
+    esquecer("telaAtual");
+    abrirTela("telaCategoria");
+    mostrarLogin();
+  }
+  document.getElementById("btnSair").addEventListener("click", sair);
+
+  // ==================================================================
+  // 10) INICIAR (roda quando a página abre ou quando aperta F5)
+  // ==================================================================
+  cadCategoria.mostrarLista();
+  cadEquipamento.mostrarLista();
+  cadFornecedor.mostrarLista();
+  atualizarSelects();
+
+    // Se chegou pelas setas voltar/avançar do navegador, começa sempre pelo login
+  const navegacao = performance.getEntriesByType("navigation")[0];
+  if (navegacao && navegacao.type === "back_forward") {
+    esquecer("token");
+    esquecer("logado");
+    esquecer("telaAtual");
+  }
+  window.addEventListener("pageshow", function (evento) {
+    if (evento.persisted) sair();   // página restaurada do cache de voltar/avançar
+  });
+
+  const telaSalva = lerLembrado("telaAtual");
+  if (telaSalva && document.getElementById(telaSalva)) abrirTela(telaSalva);
+
+  if (lerLembrado("token")) {
+    mostrarSistema();
+    recarregarTudo().catch(function (erro) { mostrarAviso("Erro", erro.message); });
+  }
+</script>
+</body>
+</html>
