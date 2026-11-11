@@ -70,7 +70,7 @@ def login(dados: LoginIn, db: Session = Depends(get_db)):
     u = db.scalar(select(Usuario).where(Usuario.usuario == nome))
     if not verificar_senha(dados.senha, u.senha_hash if u else None):
         raise HTTPException(401, "Usuário ou senha incorretos.")
-        return {"access_token": criar_token(u.usuario), "token_type": "bearer", "usuario": u.usuario}
+    return {"access_token": criar_token(u.usuario), "token_type": "bearer", "usuario": u.usuario}
 
 
 # ---------------- CATEGORIAS ----------------

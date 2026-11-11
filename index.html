@@ -399,6 +399,7 @@
       }
       throw new Error(msg);
     }
+      if (dados === null) throw new Error("Resposta inválida do servidor. Confira se a API está rodando na porta 8000.");
     return dados;
   }
 
