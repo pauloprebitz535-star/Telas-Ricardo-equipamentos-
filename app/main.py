@@ -25,7 +25,12 @@ async def ciclo_de_vida(app: FastAPI):
 
 
 app = FastAPI(title="Controle de Equipamentos", lifespan=ciclo_de_vida)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+ORIGENS = [
+    "http://127.0.0.1:5500", "http://localhost:5500",   # Live Server
+    "http://127.0.0.1:8000", "http://localhost:8000",   # o próprio FastAPI
+]
+app.add_middleware(CORSMiddleware, allow_origins=ORIGENS, allow_methods=["*"], allow_headers=["*"])
 
 
 def salvar(db: Session, msg_conflito: str) -> None:

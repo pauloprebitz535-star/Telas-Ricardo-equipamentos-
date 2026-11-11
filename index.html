@@ -371,7 +371,7 @@
   // O navegador só guarda o token do login na sessão.
   // ==================================================================
   // Os dados agora ficam no MySQL. O navegador só guarda uma cópia para desenhar as telas.
-  const API_URL = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+  const API_URL = location.port === "8000" ? "" : "http://127.0.0.1:8000";
   let banco = { categorias: [], equipamentos: [], fornecedores: [] };
 
   // Faz a chamada à API (já envia o token do login). Lança Error com a mensagem do servidor.
